@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>TechFix IA — Histórico Inteligente</title>
-<meta name="description" content="Base de conhecimento da assistência: pesquise clientes, defeitos e soluções com IA local." />
+<title>AssiTec RB — Assistência Técnica | Rodeio Bonito</title>
+<meta name="description" content="AssiTec RB de Rodeio Bonito: histórico de clientes, defeitos e soluções com IA local." />
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15,8 +16,8 @@
 
 <header class="topbar glass">
   <div class="brand">
-    <div class="logo"><i class="fa-solid fa-brain"></i></div>
-    <div><strong>TechFix <span>IA</span></strong><small>Histórico inteligente • sem OS</small></div>
+    <img src="assets/logo.svg" alt="AssiTec RB" class="brand-logo" />
+    <div><strong>AssiTec <span>RB</span></strong><small>Rodeio Bonito • Assistência Técnica</small></div>
   </div>
   <div class="top-search big">
     <i class="fa-solid fa-magnifying-glass"></i>
@@ -42,15 +43,18 @@
     </nav>
     <p class="side-title">IA • INSIGHTS</p>
     <div id="insights" class="insights"></div>
-    <button id="seedBtn" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Restaurar exemplos</button>
+    <div class="side-card rb-card">
+      <img src="assets/logo.svg" alt="AssiTec RB" />
+      <div><h4>AssiTec RB</h4><p>Rodeio Bonito • banco real, sem dados inventados. Cadastre seus atendimentos e a IA aprende com eles.</p></div>
+    </div>
   </aside>
 
   <section class="content">
-    <div class="hero ia-hero">
+    <div class="hero ia-hero rb-hero">
       <div class="hero-text">
-        <div class="pill"><span class="dot"></span> IA local • funciona offline no GitHub Pages</div>
-        <h1>Sua memória técnica <em>que responde</em></h1>
-        <p>Pesquise o defeito e a IA sugere a solução usada antes. Pergunte abaixo em linguagem natural.</p>
+        <div class="pill"><span class="dot"></span> AssiTec RB • Rodeio Bonito</div>
+        <h1>Histórico da <em>AssiTec RB</em></h1>
+        <p>Pesquise clientes, defeitos atendidos e soluções encontradas. A IA sugere a solução a partir dos seus casos reais.</p>
         <div class="ai-ask glass">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
           <input id="aiInput" placeholder='Ex: "impressora atolando papel, o que fazer?"' />
@@ -59,9 +63,9 @@
         <div id="aiAnswer" class="ai-answer hidden"></div>
       </div>
       <div class="stats">
-        <div class="stat glass"><i class="fa-solid fa-database"></i><div><b id="sTotal">0</b><span>casos registrados</span></div></div>
+        <div class="stat glass"><i class="fa-solid fa-database"></i><div><b id="sTotal">0</b><span>casos reais</span></div></div>
         <div class="stat glass"><i class="fa-solid fa-triangle-exclamation"></i><div><b id="sTop">—</b><span>defeito mais comum</span></div></div>
-        <div class="stat glass highlight"><i class="fa-solid fa-lightbulb"></i><div><b id="sCob">0%</b><span>com solução registrada</span></div></div>
+        <div class="stat glass highlight"><i class="fa-solid fa-lightbulb"></i><div><b id="sCob">0%</b><span>com solução</span></div></div>
       </div>
     </div>
 
@@ -76,9 +80,10 @@
 
     <div id="cards" class="cards"></div>
     <div id="empty" class="empty glass hidden">
-      <i class="fa-solid fa-box-open"></i>
-      <h3>Nada por aqui</h3>
-      <p>Ajuste a pesquisa ou cadastre um novo caso.</p>
+      <img src="assets/logo.svg" alt="AssiTec RB" class="empty-logo" />
+      <h3>Banco vazio — pronto para os casos reais</h3>
+      <p>Nenhum cliente inventado aqui. Clique em <b>Novo caso</b> e cadastre o primeiro atendimento da AssiTec RB.</p>
+      <button class="btn-primary" onclick="document.getElementById('newBtn').click()"><i class="fa-solid fa-plus"></i> Cadastrar primeiro caso</button>
     </div>
   </section>
 </main>
@@ -90,7 +95,7 @@
       <button type="button" id="closeModal" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="grid2">
-      <label>Cliente*<input name="cliente" required placeholder="Ex: Maria Silva" /></label>
+      <label>Cliente*<input name="cliente" required placeholder="Nome do cliente real" /></label>
       <label>Data<input name="data" type="date" /></label>
     </div>
     <div class="grid2">
@@ -109,7 +114,7 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<footer class="foot">TechFix IA • banco local no navegador + <code>data/clientes.json</code> • IA 100% local, sem chave</footer>
+<footer class="foot">AssiTec RB • Rodeio Bonito • banco local + <code>data/clientes.json</code> • IA local, sem chave</footer>
 <script src="js/app.js"></script>
 </body>
 </html>

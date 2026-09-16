@@ -1,5 +1,5 @@
-/* TechFix IA — banco local + IA local (similaridade + insights). Sem backend, sem chave. */
-const KEY = 'techfix_ia_v2';
+/* AssiTec RB (Rodeio Bonito) — banco real + IA local. Sem dados inventados. */
+const KEY = 'assitec_rb_v1';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -8,10 +8,6 @@ const STOP = new Set(['com','para','que','dos','das','uma','isso','esta','esse',
 
 let db = [], fClass='todos', fSearch='', fSort='recentes';
 
-async function seed(){
-  try{ const r = await fetch('data/clientes.json'); if(r.ok) return await r.json(); }catch(e){}
-  return [];
-}
 function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
 function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ db=JSON.parse(raw); return; } }catch(e){} db=[]; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -131,7 +127,7 @@ function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.remove('hid
 
 async function init(){
   load();
-  if(!db.length){ db = await seed(); save(); }
+  // Banco começa vazio de propósito: sem clientes inventados.
   render();
   $('#classFilter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('#classFilter button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fClass=b.dataset.class; render(); });
   document.querySelector('.seg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('.seg button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fSort=b.dataset.sort; render(); });
@@ -160,9 +156,9 @@ async function init(){
     if(i>=0){ data.criadoEm=db[i].criadoEm; db[i]=data; } else db.unshift(data);
     save(); render(); closeModal(); toast('Salvo! A IA já aprendeu.');
   });
-  $('#exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='historico-assistencia.json'; a.click(); };
+  $('#exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='assitec-rb-historico.json'; a.click(); };
   $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const j=JSON.parse(r.result); if(Array.isArray(j)){ db=j; save(); render(); toast('Importado!'); } }catch{ toast('Arquivo inválido'); } }; r.readAsText(f); });
-  $('#seedBtn').onclick=async()=>{ if(confirm('Restaurar exemplos?')){ db=await seed(); save(); render(); } };
+  const seedBtn=$('#seedBtn'); if(seedBtn) seedBtn.onclick=()=>toast('Banco real: sem exemplos inventados.');
   $('#themeBtn').onclick=()=>document.body.classList.toggle('light');
 }
 document.addEventListener('DOMContentLoaded',init);
