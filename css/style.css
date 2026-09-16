@@ -42,6 +42,16 @@ h1,h2{font-family:'Space Grotesk',sans-serif}
 .map-card{margin-top:12px;border:1px solid var(--stroke);border-radius:14px;overflow:hidden}
 .map-card iframe{width:100%;height:220px;border:0;display:block;filter:saturate(1.1)}
 .foot a{color:#9db9ff}
+.cloud-card{background:rgba(0,0,0,.3);border:1px solid var(--stroke);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cloud-card label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+.cloud-card input{background:rgba(0,0,0,.4);border:1px solid var(--stroke);border-radius:9px;padding:9px;color:var(--txt);font-size:12px;outline:none;width:100%}
+.cloud-card input:focus{border-color:var(--acc)}
+.cloud-status{font-size:12px;font-weight:700;background:#ffffff0c;border:1px solid var(--stroke);border-radius:9px;padding:8px 10px}
+.cloud-status.ok{border-color:#22ff8866;color:#8fffb6}
+.cloud-status.err{border-color:#ff547066;color:#ff8aa0}
+.cloud-btns{display:flex;gap:8px}
+.cloud-card small{font-size:11px}
+.cloud-card code{background:#ffffff14;padding:1px 5px;border-radius:5px}
 .rb-hero h1 em{background:linear-gradient(90deg,#9db9ff,#ffffff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .topbar{border-top:3px solid var(--rb-blue)}
 .brand small{display:block;color:var(--muted);font-size:12px}

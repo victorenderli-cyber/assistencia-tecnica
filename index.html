@@ -41,6 +41,17 @@
       <button data-class="Impressora"><i class="fa-solid fa-print"></i> Impressoras <b id="cImpressora">0</b></button>
       <button data-class="Outros"><i class="fa-solid fa-tablet-screen-button"></i> Outros <b id="cOutros">0</b></button>
     </nav>
+    <p class="side-title">BANCO COMPARTILHADO</p>
+    <div class="cloud-card">
+      <div id="cloudStatus" class="cloud-status">💾 Banco local (sem nuvem)</div>
+      <label>Supabase URL<input id="cfgUrl" placeholder="https://xyz.supabase.co" autocomplete="off" /></label>
+      <label>Chave anon<input id="cfgKey" type="password" placeholder="eyJ..." autocomplete="off" /></label>
+      <div class="cloud-btns">
+        <button id="cfgSave" class="mini"><i class="fa-solid fa-plug"></i> Conectar</button>
+        <button id="cfgSync" class="mini"><i class="fa-solid fa-rotate"></i> Sincronizar</button>
+      </div>
+      <small class="muted">Veja <code>BANCO-NUVEM.md</code> no repo. Sem config = banco local.</small>
+    </div>
     <p class="side-title">IA • INSIGHTS</p>
     <div id="insights" class="insights"></div>
     <div class="side-card rb-card">

@@ -1,5 +1,34 @@
 /* AssiTec RB (Rodeio Bonito) — banco real + IA local. Sem dados inventados. */
 const KEY = 'assitec_rb_v1';
+const CFG_KEY = 'assitec_rb_cfg';
+
+/* ---- Nuvem (Supabase REST, sem dependências) ---- */
+function cfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY))||{}; }catch(e){ return {}; } }
+const Cloud = {
+  get c(){ return cfg(); },
+  on(){ const c=this.c; return !!(c.url && c.key); },
+  headers(extra={}){ return Object.assign({apikey:this.c.key, Authorization:'Bearer '+this.c.key, 'Content-Type':'application/json'}, extra); },
+  url(p){ return this.c.url.replace(/\/$/,'') + '/rest/v1/casos' + p; },
+  toRow(d){ return {id:d.id, cliente:d.cliente, data:d.data, classe:d.classe, modelo:d.modelo, defeito:d.defeito, solucao:d.solucao, criado_em:d.criadoEm}; },
+  fromRow(r){ return {id:r.id, cliente:r.cliente, data:r.data, classe:r.classe, modelo:r.modelo, defeito:r.defeito, solucao:r.solucao, criadoEm:r.criado_em}; },
+  async pull(){
+    const r = await fetch(this.url('?select=*&order=criado_em.desc'), {headers:this.headers()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return (await r.json()).map(this.fromRow);
+  },
+  async upsert(d){
+    const r = await fetch(this.url(''), {method:'POST', headers:this.headers({Prefer:'resolution=merge-duplicates,return=representation'}), body:JSON.stringify(this.toRow(d))});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+  },
+  async remove(id){
+    const r = await fetch(this.url('?id=eq.'+encodeURIComponent(id)), {method:'DELETE', headers:this.headers()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+  }
+};
+function cloudStatus(msg, ok){
+  const el = $('#cloudStatus'); if(!el) return;
+  el.innerHTML = msg; el.className = 'cloud-status ' + (ok===true?'ok':ok===false?'err':'');
+}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -89,7 +118,7 @@ function render(){
 }
 function action(act,id){
   const d=db.find(x=>x.id===id); if(!d) return;
-  if(act==='del'){ if(confirm('Excluir caso de '+d.cliente+'?')){ db=db.filter(x=>x.id!==id); save(); render(); toast('Excluído'); } }
+  if(act==='del'){ if(confirm('Excluir caso de '+d.cliente+'?')){ db=db.filter(x=>x.id!==id); save(); render(); toast('Excluído'); if(Cloud.on()) Cloud.remove(id).catch(()=>toast('Excluído local; nuvem falhou — sincronize')); } }
   if(act==='edit') openModal(d);
   if(act==='similar'){
     const s=similares(d.defeito+' '+d.modelo,4).filter(x=>x.d.id!==id);
@@ -155,10 +184,33 @@ async function init(){
     const i=db.findIndex(x=>x.id===data.id);
     if(i>=0){ data.criadoEm=db[i].criadoEm; db[i]=data; } else db.unshift(data);
     save(); render(); closeModal(); toast('Salvo! A IA já aprendeu.');
+    if(Cloud.on()) Cloud.upsert(data).then(()=>cloudStatus('☁️ Nuvem conectada', true)).catch(()=>{ cloudStatus('⚠️ Salvo local; nuvem falhou', false); toast('Salvo local; nuvem falhou — sincronize'); });
   });
   $('#exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='assitec-rb-historico.json'; a.click(); };
   $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const j=JSON.parse(r.result); if(Array.isArray(j)){ db=j; save(); render(); toast('Importado!'); } }catch{ toast('Arquivo inválido'); } }; r.readAsText(f); });
   const seedBtn=$('#seedBtn'); if(seedBtn) seedBtn.onclick=()=>toast('Banco real: sem exemplos inventados.');
   $('#themeBtn').onclick=()=>document.body.classList.toggle('light');
+  // ---- nuvem: preenche config salva, testa e sincroniza ----
+  const c0 = cfg();
+  if($('#cfgUrl')) $('#cfgUrl').value = c0.url||'';
+  if($('#cfgKey')) $('#cfgKey').value = c0.key||'';
+  async function syncPull(silent){
+    if(!Cloud.on()){ cloudStatus('💾 Banco local (sem nuvem)'); return; }
+    cloudStatus('⏳ Sincronizando...');
+    try{
+      db = await Cloud.pull(); save(); render();
+      cloudStatus('☁️ Nuvem conectada • '+db.length+' casos', true);
+      if(!silent) toast('Sincronizado com a nuvem!');
+    }catch(e){ cloudStatus('⚠️ Nuvem inacessível — usando local', false); }
+  }
+  const saveCfg = ()=>{
+    const url=($('#cfgUrl')?.value||'').trim(), key=($('#cfgKey')?.value||'').trim();
+    localStorage.setItem(CFG_KEY, JSON.stringify({url, key}));
+    toast(url&&key ? 'Configuração salva. Sincronizando...' : 'Nuvem desativada — usando banco local.');
+    syncPull(true);
+  };
+  if($('#cfgSave')) $('#cfgSave').onclick=saveCfg;
+  if($('#cfgSync')) $('#cfgSync').onclick=()=>syncPull(false);
+  syncPull(true);
 }
 document.addEventListener('DOMContentLoaded',init);
