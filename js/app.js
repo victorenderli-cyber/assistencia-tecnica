@@ -161,14 +161,48 @@ function action(act,id){
   }
 }
 
-/* ---- IA pergunta ---- */
-function askAI(q){
+/* ---- IA pergunta (modelo real quando ativo, similaridade como base) ---- */
+function similarText(q, s){
+  if(!s.length) return `Não encontrei nada parecido no histórico para "<b>${esc(q)}</b>". Cadastre a solução quando resolver para a IA aprender.`;
+  return `<b>✨ IA encontrou ${s.length} caso(s) para "${esc(q)}":</b><br><br>`+
+    s.map((x,i)=>`<b>${i+1}. ${esc(x.d.cliente)}</b> <span class="badge b-${x.d.classe}">${x.d.classe}</span><br><span class="muted">Defeito:</span> ${esc(x.d.defeito)}<br><span class="muted">Solução sugerida:</span> <b>${esc(x.d.solucao)}</b>`).join('<br><br>');
+}
+async function askAI(q){
   const box=$('#aiAnswer'); box.classList.remove('hidden');
   if(!q.trim()){ box.innerHTML='Digite sua dúvida acima. Ex: "notebook não liga".'; return; }
   const s=similares(q,3);
-  if(!s.length){ box.innerHTML=`Não encontrei nada parecido no histórico para "<b>${esc(q)}</b>". Cadastre a solução quando resolver para a IA aprender.`; return; }
-  box.innerHTML=`<b>✨ IA encontrou ${s.length} caso(s) para "${esc(q)}":</b><br><br>`+
-    s.map((x,i)=>`<b>${i+1}. ${esc(x.d.cliente)}</b> <span class="badge b-${x.d.classe}">${x.d.classe}</span><br><span class="muted">Defeito:</span> ${esc(x.d.defeito)}<br><span class="muted">Solução sugerida:</span> <b>${esc(x.d.solucao)}</b>`).join('<br><br>');
+  const M = window.AIModel;
+  if(M && M.engine){
+    box.innerHTML='⏳ Modelo IA pensando com base nos seus casos...';
+    try{
+      const txt = await M.ask(q, s.map(x=>x.d));
+      box.innerHTML = `<b>🧠 Modelo IA (${esc(M.modelId.split('-').slice(0,3).join(' '))}):</b><div class="model-answer">${esc(txt)}</div>`;
+    }catch(e){ box.innerHTML = '⚠️ O modelo falhou; segue a busca simples:<br><br>' + similarText(q, s); }
+    return;
+  }
+  box.innerHTML = similarText(q, s) + '<br><br><span class="muted">💡 Ative o <b>modelo de IA</b> no painel lateral para respostas geradas em texto.</span>';
+}
+function modelStatus(msg, ok){
+  const el=$('#modelStatus'); if(!el) return;
+  el.innerHTML=msg; el.className='cloud-status '+(ok===true?'ok':ok===false?'err':'');
+}
+function wireModel(){
+  const M = window.AIModel; if(!M) return;
+  if(!M.supported()){ modelStatus('⚠️ Sem WebGPU aqui — segue a busca simples', false); const b=$('#modelBtn'); if(b) b.disabled=true; return; }
+  const btn=$('#modelBtn'); if(!btn) return;
+  btn.onclick = async ()=>{
+    const id=$('#modelPick').value;
+    const bar=$('#modelBar'), fill=bar?.querySelector('span');
+    btn.disabled=true; bar?.classList.remove('hidden');
+    try{
+      await M.activate(id, (p)=>{
+        const pct = Math.round((p.progress||0)*100);
+        if(fill) fill.style.width=pct+'%';
+        modelStatus(`⏳ Baixando modelo... ${pct}% — ${esc(p.text||'')}`);
+      });
+      modelStatus('🧠 Modelo ativo — perguntas usam IA gerada', true);
+    }catch(e){ modelStatus('⚠️ '+esc(e.message), false); btn.disabled=false; }
+  };
 }
 
 /* ---- modal ---- */
@@ -244,5 +278,6 @@ async function init(){
   if($('#cfgSave')) $('#cfgSave').onclick=saveCfg;
   if($('#cfgSync')) $('#cfgSync').onclick=()=>syncPull(false);
   syncPull(true);
+  wireModel();
 }
 document.addEventListener('DOMContentLoaded',init);

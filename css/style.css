@@ -51,6 +51,9 @@ h1,h2{font-family:'Space Grotesk',sans-serif}
 .cloud-status.err{border-color:#ff547066;color:#ff8aa0}
 .cloud-btns{display:flex;gap:8px}
 .cloud-card small{font-size:11px}
+.model-bar{height:10px;background:#ffffff10;border:1px solid var(--stroke);border-radius:999px;overflow:hidden}
+.model-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc2),var(--acc));transition:width .2s}
+.model-answer{white-space:pre-wrap}
 .cloud-card code{background:#ffffff14;padding:1px 5px;border-radius:5px}
 .rb-hero h1 em{background:linear-gradient(90deg,#9db9ff,#ffffff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .topbar{border-top:3px solid var(--rb-blue)}
