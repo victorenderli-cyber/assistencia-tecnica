@@ -44,13 +44,16 @@
     <p class="side-title">BANCO COMPARTILHADO</p>
     <div class="cloud-card">
       <div id="cloudStatus" class="cloud-status">💾 Banco local (sem nuvem)</div>
-      <label>Supabase URL<input id="cfgUrl" placeholder="https://xyz.supabase.co" autocomplete="off" /></label>
-      <label>Chave anon<input id="cfgKey" type="password" placeholder="eyJ..." autocomplete="off" /></label>
+      <label>Token GitHub (conteúdo do repo)<input id="cfgToken" type="password" placeholder="github_pat_..." autocomplete="off" /></label>
+      <div class="grid2">
+        <label>Dono<input id="cfgOwner" placeholder="victorenderli-cyber" autocomplete="off" /></label>
+        <label>Repo<input id="cfgRepo" placeholder="assistencia-tecnica" autocomplete="off" /></label>
+      </div>
       <div class="cloud-btns">
         <button id="cfgSave" class="mini"><i class="fa-solid fa-plug"></i> Conectar</button>
         <button id="cfgSync" class="mini"><i class="fa-solid fa-rotate"></i> Sincronizar</button>
       </div>
-      <small class="muted">Veja <code>BANCO-NUVEM.md</code> no repo. Sem config = banco local.</small>
+      <small class="muted">Cada salvamento vira commit. Guia em <code>GITHUB-BANCO.md</code>. Sem token = banco local.</small>
     </div>
     <p class="side-title">IA • INSIGHTS</p>
     <div id="insights" class="insights"></div>

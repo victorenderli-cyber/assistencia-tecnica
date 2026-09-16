@@ -2,27 +2,58 @@
 const KEY = 'assitec_rb_v1';
 const CFG_KEY = 'assitec_rb_cfg';
 
-/* ---- Nuvem (Supabase REST, sem dependências) ---- */
-function cfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY))||{}; }catch(e){ return {}; } }
+/* ---- Nuvem: o próprio GitHub como banco (Contents API) ----
+   Salvar = commit em data/clientes.json. Zero conta nova. */
+function cfg(){ try{ return Object.assign({owner:'victorenderli-cyber', repo:'assistencia-tecnica', branch:'main', path:'data/clientes.json'}, JSON.parse(localStorage.getItem(CFG_KEY))||{}); }catch(e){ return {owner:'victorenderli-cyber', repo:'assistencia-tecnica', branch:'main', path:'data/clientes.json'}; } }
 const Cloud = {
   get c(){ return cfg(); },
-  on(){ const c=this.c; return !!(c.url && c.key); },
-  headers(extra={}){ return Object.assign({apikey:this.c.key, Authorization:'Bearer '+this.c.key, 'Content-Type':'application/json'}, extra); },
-  url(p){ return this.c.url.replace(/\/$/,'') + '/rest/v1/casos' + p; },
-  toRow(d){ return {id:d.id, cliente:d.cliente, data:d.data, classe:d.classe, modelo:d.modelo, defeito:d.defeito, solucao:d.solucao, criado_em:d.criadoEm}; },
-  fromRow(r){ return {id:r.id, cliente:r.cliente, data:r.data, classe:r.classe, modelo:r.modelo, defeito:r.defeito, solucao:r.solucao, criadoEm:r.criado_em}; },
+  on(){ const c=this.c; return !!(c.token && c.owner && c.repo); },
+  headers(extra={}){ return Object.assign({Accept:'application/vnd.github+json', Authorization:'Bearer '+this.c.token}, extra); },
+  url(){ const c=this.c; return 'https://api.github.com/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo)+'/contents/'+c.path.split('/').map(encodeURIComponent).join('/'); },
+  b64encode(s){ return btoa(String.fromCharCode(...new TextEncoder().encode(s))); },
+  b64decode(b){ const bin=atob(b.replace(/\n/g,'')); const bytes=Uint8Array.from(bin, ch=>ch.charCodeAt(0)); return new TextDecoder().decode(bytes); },
+  async readFile(){
+    const c=this.c;
+    const r = await fetch(this.url()+'?ref='+encodeURIComponent(c.branch), {headers:this.headers()});
+    if(r.status===404) return {items:[], sha:null};
+    if(!r.ok) throw new Error('GitHub HTTP '+r.status);
+    const j = await r.json();
+    return {items: JSON.parse(this.b64decode(j.content||'')), sha: j.sha};
+  },
+  async writeFile(items, sha, msg){
+    const r = await fetch(this.url(), {method:'PUT', headers:Object.assign(this.headers(), {'Content-Type':'application/json'}),
+      body: JSON.stringify({message:msg, content:this.b64encode(JSON.stringify(items,null,2)), sha:sha||undefined, branch:this.c.branch})});
+    if(r.status===409 || r.status===422){ const e=new Error('conflict'); e.retry=true; throw e; }
+    if(!r.ok && !(r.status===201||r.status===200)) throw new Error('GitHub HTTP '+r.status);
+  },
+  _q: Promise.resolve(),
+  mutate(fn, msg){
+    this._q = this._q.then(async ()=>{
+      try{ return await this._tryMutate(fn, msg); }
+      catch(e){ if(e.retry) return await this._tryMutate(fn, msg); throw e; }
+    });
+    return this._q;
+  },
+  async _tryMutate(fn, msg){
+    const cur = await this.readFile();
+    const items = fn(cur.items);
+    await this.writeFile(items, cur.sha, msg);
+    return items;
+  },
   async pull(){
-    const r = await fetch(this.url('?select=*&order=criado_em.desc'), {headers:this.headers()});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return (await r.json()).map(this.fromRow);
+    const cur = await this.readFile();
+    return cur.items;
   },
   async upsert(d){
-    const r = await fetch(this.url(''), {method:'POST', headers:this.headers({Prefer:'resolution=merge-duplicates,return=representation'}), body:JSON.stringify(this.toRow(d))});
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    return this.mutate(items=>{
+      const i = items.findIndex(x=>x.id===d.id);
+      const row = {id:d.id, cliente:d.cliente, data:d.data, classe:d.classe, modelo:d.modelo, defeito:d.defeito, solucao:d.solucao, criadoEm:d.criadoEm};
+      if(i>=0) items[i]=row; else items.unshift(row);
+      return items;
+    }, 'AssiTec RB: salva caso '+d.cliente);
   },
   async remove(id){
-    const r = await fetch(this.url('?id=eq.'+encodeURIComponent(id)), {method:'DELETE', headers:this.headers()});
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    return this.mutate(items=>items.filter(x=>x.id!==id), 'AssiTec RB: exclui caso');
   }
 };
 function cloudStatus(msg, ok){
@@ -190,23 +221,24 @@ async function init(){
   $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const j=JSON.parse(r.result); if(Array.isArray(j)){ db=j; save(); render(); toast('Importado!'); } }catch{ toast('Arquivo inválido'); } }; r.readAsText(f); });
   const seedBtn=$('#seedBtn'); if(seedBtn) seedBtn.onclick=()=>toast('Banco real: sem exemplos inventados.');
   $('#themeBtn').onclick=()=>document.body.classList.toggle('light');
-  // ---- nuvem: preenche config salva, testa e sincroniza ----
+  // ---- nuvem (GitHub): preenche config salva, testa e sincroniza ----
   const c0 = cfg();
-  if($('#cfgUrl')) $('#cfgUrl').value = c0.url||'';
-  if($('#cfgKey')) $('#cfgKey').value = c0.key||'';
+  if($('#cfgToken')) $('#cfgToken').value = c0.token||'';
+  if($('#cfgOwner')) $('#cfgOwner').value = c0.owner||'';
+  if($('#cfgRepo')) $('#cfgRepo').value = c0.repo||'';
   async function syncPull(silent){
     if(!Cloud.on()){ cloudStatus('💾 Banco local (sem nuvem)'); return; }
     cloudStatus('⏳ Sincronizando...');
     try{
       db = await Cloud.pull(); save(); render();
-      cloudStatus('☁️ Nuvem conectada • '+db.length+' casos', true);
-      if(!silent) toast('Sincronizado com a nuvem!');
-    }catch(e){ cloudStatus('⚠️ Nuvem inacessível — usando local', false); }
+      cloudStatus('☁️ GitHub conectado • '+db.length+' casos', true);
+      if(!silent) toast('Sincronizado com o GitHub!');
+    }catch(e){ cloudStatus('⚠️ GitHub inacessível — usando local', false); }
   }
   const saveCfg = ()=>{
-    const url=($('#cfgUrl')?.value||'').trim(), key=($('#cfgKey')?.value||'').trim();
-    localStorage.setItem(CFG_KEY, JSON.stringify({url, key}));
-    toast(url&&key ? 'Configuração salva. Sincronizando...' : 'Nuvem desativada — usando banco local.');
+    const token=($('#cfgToken')?.value||'').trim(), owner=($('#cfgOwner')?.value||'').trim()||'victorenderli-cyber', repo=($('#cfgRepo')?.value||'').trim()||'assistencia-tecnica';
+    localStorage.setItem(CFG_KEY, JSON.stringify({token, owner, repo, branch:'main', path:'data/clientes.json'}));
+    toast(token ? 'Token salvo. Sincronizando...' : 'Nuvem desativada — usando banco local.');
     syncPull(true);
   };
   if($('#cfgSave')) $('#cfgSave').onclick=saveCfg;
