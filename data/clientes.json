@@ -1,0 +1,62 @@
+[
+  {
+    "id": "seed-1",
+    "os": "OS-1001",
+    "cliente": "Maria Silva",
+    "telefone": "11987654321",
+    "classe": "Notebook",
+    "modelo": "Dell Inspiron 15 3520",
+    "defeito": "Não liga, LED pisca 3x",
+    "servico": "Reparo placa + troca RAM 8GB",
+    "valor": 450,
+    "status": "Em reparo",
+    "previsao": "2026-09-20",
+    "obs": "Senha: 1234",
+    "criadoEm": 1726000000000
+  },
+  {
+    "id": "seed-2",
+    "os": "OS-1002",
+    "cliente": "João Pedro",
+    "telefone": "21999998888",
+    "classe": "CPU",
+    "modelo": "Ryzen 5 5600G / B450",
+    "defeito": "Desligando sozinho / aquecendo",
+    "servico": "Troca pasta térmica + fonte 500W",
+    "valor": 320,
+    "status": "Pronto",
+    "previsao": "2026-09-17",
+    "obs": "",
+    "criadoEm": 1725800000000
+  },
+  {
+    "id": "seed-3",
+    "os": "OS-1003",
+    "cliente": "Padaria Pão Dourado",
+    "telefone": "31988887777",
+    "classe": "Impressora",
+    "modelo": "Epson EcoTank L3250",
+    "defeito": "Falha impressão magenta, papel atolando",
+    "servico": "Limpeza cabeçote + kit rolete",
+    "valor": 280,
+    "status": "Aguardando",
+    "previsao": "2026-09-22",
+    "obs": "Peça encomendada",
+    "criadoEm": 1726100000000
+  },
+  {
+    "id": "seed-4",
+    "os": "OS-1004",
+    "cliente": "Ana Costa",
+    "telefone": "11977776666",
+    "classe": "Outros",
+    "modelo": "Monitor LG 24 + Tablet Samsung",
+    "defeito": "Monitor sem imagem / tablet tela trincada",
+    "servico": "Troca cabo + orçamento tela",
+    "valor": 150,
+    "status": "Entregue",
+    "previsao": "2026-09-10",
+    "obs": "Garantia 90 dias",
+    "criadoEm": 1725500000000
+  }
+]
