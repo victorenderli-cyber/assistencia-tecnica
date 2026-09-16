@@ -117,6 +117,19 @@
       <p>Ajuste a pesquisa ou cadastre um novo caso.</p>
       <button class="btn-primary" onclick="document.getElementById('newBtn').click()"><i class="fa-solid fa-plus"></i> Novo caso</button>
     </div>
+
+    <div class="guides-head">
+      <h2><i class="fa-solid fa-book-open"></i> Base técnica — defeitos comuns</h2>
+      <div id="guideFilter" class="chip-row">
+        <button data-class="todas" class="chip active">Todas</button>
+        <button data-class="CPU" class="chip">CPU</button>
+        <button data-class="Notebook" class="chip">Notebook</button>
+        <button data-class="Impressora" class="chip">Impressora</button>
+        <button data-class="Outros" class="chip">Outros</button>
+      </div>
+    </div>
+    <p class="muted guides-sub">Referência genérica de bancada (sem clientes). A busca acima também filtra aqui, e a IA usa estes guias como contexto.</p>
+    <div id="guides" class="cards"></div>
   </section>
 </main>
 

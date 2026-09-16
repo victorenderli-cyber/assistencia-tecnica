@@ -66,7 +66,45 @@ const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-
 const toks = s => norm(s).replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
 const STOP = new Set(['com','para','que','dos','das','uma','isso','esta','esse','foi','sao','como','mais','muito','quando','direto','toda','todo']);
 
-let db = [], fClass='todos', fSearch='', fSort='recentes';
+let db = [], guias = [], fClass='todos', fSearch='', fSort='recentes', gClass='todas';
+
+async function loadGuias(){
+  try{ const r = await fetch('data/guias.json'); if(r.ok){ guias = await r.json(); return; } }catch(e){}
+  guias = [];
+}
+function guiasSimilares(q, n=3){
+  const pool = guias.map(g=>({d:{cliente:'📚 Base técnica', classe:g.classe, modelo:'', defeito:g.defeito, solucao:g.solucao, guia:true}, s:score(q,{defeito:g.defeito, solucao:g.solucao, modelo:'', cliente:'', classe:g.classe})}));
+  return pool.filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,n);
+}
+function filteredGuias(){
+  return guias.filter(g=>{
+    if(gClass!=='todas' && g.classe!==gClass) return false;
+    if(!fSearch) return true;
+    return score(fSearch,{defeito:g.defeito, solucao:g.solucao, modelo:'', cliente:'', classe:g.classe})>0
+      || norm(g.defeito+' '+g.solucao).includes(norm(fSearch));
+  });
+}
+function renderGuides(){
+  const box=$('#guides'); if(!box) return;
+  const list=filteredGuias();
+  box.innerHTML=list.map(g=>`
+    <article class="card glass guide-card">
+      <div class="card-top">
+        <div><span class="os">GUIA</span><h3>${esc(g.defeito)}</h3></div>
+        <span class="badge b-${g.classe}">${g.classe}</span>
+      </div>
+      <div class="solucao"><b style="color:#8fffb6">✔ Como resolver:</b> ${esc(g.solucao)}</div>
+      <div class="card-actions">
+        <button class="mini" data-gact="copy" data-gid="${g.id}"><i class="fa-solid fa-copy"></i> Copiar</button>
+        <button class="mini" data-gact="usar" data-gid="${g.id}"><i class="fa-solid fa-plus"></i> Novo caso</button>
+      </div>
+    </article>`).join('') || '<div class="empty glass"><p>Nenhum guia para este filtro.</p></div>';
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    const g=guias.find(x=>x.id===b.dataset.gid); if(!g) return;
+    if(b.dataset.gact==='copy'){ (navigator.clipboard?.writeText(g.defeito+'\n'+g.solucao)||Promise.reject()).then(()=>toast('Guia copiado!')).catch(()=>toast('Não copiou')); }
+    else { openModal(null); const f=$('#caseForm'); f.classe.value=g.classe; f.defeito.value=g.defeito; }
+  });
+}
 
 function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
 function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ db=JSON.parse(raw); return; } }catch(e){} db=[]; }
@@ -163,9 +201,11 @@ function action(act,id){
 
 /* ---- IA pergunta (modelo real quando ativo, similaridade como base) ---- */
 function similarText(q, s){
-  if(!s.length) return `Não encontrei nada parecido no histórico para "<b>${esc(q)}</b>". Cadastre a solução quando resolver para a IA aprender.`;
-  return `<b>✨ IA encontrou ${s.length} caso(s) para "${esc(q)}":</b><br><br>`+
+  const base = !s.length ? `Não encontrei casos reais para "<b>${esc(q)}</b>".` : `<b>✨ IA encontrou ${s.length} caso(s) para "${esc(q)}":</b><br><br>`+
     s.map((x,i)=>`<b>${i+1}. ${esc(x.d.cliente)}</b> <span class="badge b-${x.d.classe}">${x.d.classe}</span><br><span class="muted">Defeito:</span> ${esc(x.d.defeito)}<br><span class="muted">Solução sugerida:</span> <b>${esc(x.d.solucao)}</b>`).join('<br><br>');
+  const g = guiasSimilares(q, 2);
+  const gtxt = g.length ? '<br><br><b>📚 Base técnica:</b><br>'+g.map(x=>`• (${x.d.classe}) <i>${esc(x.d.defeito)}</i><br><span class="muted">→ ${esc(x.d.solucao.slice(0,160))}...</span>`).join('<br><br>') : '';
+  return base + gtxt;
 }
 async function askAI(q){
   const box=$('#aiAnswer'); box.classList.remove('hidden');
@@ -175,7 +215,8 @@ async function askAI(q){
   if(M && M.engine){
     box.innerHTML='⏳ Modelo IA pensando com base nos seus casos...';
     try{
-      const txt = await M.ask(q, s.map(x=>x.d));
+      const ctx = s.map(x=>x.d).concat(guiasSimilares(q,3).map(x=>x.d));
+      const txt = await M.ask(q, ctx);
       box.innerHTML = `<b>🧠 Modelo IA (${esc(M.modelId.split('-').slice(0,3).join(' '))}):</b><div class="model-answer">${esc(txt)}</div>`;
     }catch(e){ box.innerHTML = '⚠️ O modelo falhou; segue a busca simples:<br><br>' + similarText(q, s); }
     return;
@@ -221,23 +262,25 @@ function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.remove('hid
 
 async function init(){
   load();
+  await loadGuias();
   // Banco começa vazio de propósito: sem clientes inventados.
-  render();
+  render(); renderGuides();
+  $('#guideFilter')?.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('#guideFilter button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); gClass=b.dataset.class; renderGuides(); });
   $('#classFilter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('#classFilter button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fClass=b.dataset.class; render(); });
   document.querySelector('.seg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('.seg button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fSort=b.dataset.sort; render(); });
-  $('#searchInput').addEventListener('input',e=>{ fSearch=e.target.value; render(); });
+  $('#searchInput').addEventListener('input',e=>{ fSearch=e.target.value; render(); renderGuides(); });
   document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); } if(e.key==='Escape') closeModal(); });
   $('#aiBtn').onclick=()=>askAI($('#aiInput').value);
   $('#aiInput').addEventListener('keydown',e=>{ if(e.key==='Enter') askAI(e.target.value); });
-  // sugestão automática ao digitar defeito no modal
+  // sugestão automática ao digitar defeito no modal (casos + base técnica)
   $('#fDefeito').addEventListener('input',e=>{
     const q=e.target.value; const box=$('#aiSuggest');
     if(q.trim().length<4){ box.classList.add('hidden'); return; }
-    const s=similares(q,2);
+    const s=similares(q,1).concat(guiasSimilares(q,1));
     if(!s.length){ box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
-    box.innerHTML='<b>✨ IA sugere (baseado no histórico):</b>'+s.map(x=>`<button type="button">Usar: "${esc(x.d.solucao.slice(0,90))}..."</button>`).join('');
-    box.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{ document.querySelector('#caseForm').solucao.value=s[i].d.solucao; });
+    box.innerHTML='<b>✨ IA sugere (casos + base técnica):</b>'+s.map((x,i)=>`<button type="button" data-si="${i}">${x.d.guia?'📚':'🧾'} Usar: "${esc(x.d.solucao.slice(0,90))}..."</button>`).join('');
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>{ document.querySelector('#caseForm').solucao.value=s[+b.dataset.si].d.solucao; });
   });
   $('#newBtn').onclick=()=>openModal(null);
   $('#closeModal').onclick=closeModal; $('#cancelBtn').onclick=closeModal;
