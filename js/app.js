@@ -1,48 +1,168 @@
-/* TechFix simples — sem histórico, sem banco. Só gera OS na hora. */
+/* TechFix IA — banco local + IA local (similaridade + insights). Sem backend, sem chave. */
+const KEY = 'techfix_ia_v2';
 const $ = s => document.querySelector(s);
-let classe = 'CPU';
-const fmtBRL = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const $$ = s => [...document.querySelectorAll(s)];
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const toks = s => norm(s).replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
+const STOP = new Set(['com','para','que','dos','das','uma','isso','esta','esse','foi','sao','como','mais','muito','quando','direto','toda','todo']);
 
-function dados(){
-  const f = $('#osForm');
-  return {
-    os: 'OS-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random()*9000)+1000),
-    cliente: f.cliente.value.trim(),
-    telefone: f.telefone.value.trim(),
-    modelo: f.modelo.value.trim(),
-    defeito: f.defeito.value.trim(),
-    valor: parseFloat(f.valor.value)||0,
-    previsao: f.previsao.value,
-    obs: f.obs.value.trim(),
-    classe
-  };
+let db = [], fClass='todos', fSearch='', fSort='recentes';
+
+async function seed(){
+  try{ const r = await fetch('data/clientes.json'); if(r.ok) return await r.json(); }catch(e){}
+  return [];
 }
-function valido(d){
-  if(!d.cliente || !d.telefone || !d.defeito){ alert('Preencha cliente, telefone e defeito.'); return false; }
-  return true;
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ db=JSON.parse(raw); return; } }catch(e){} db=[]; }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---- IA: similaridade ---- */
+function score(q, d){
+  const qt = toks(q).filter(w=>!STOP.has(w));
+  if(!qt.length) return 0;
+  const hay = toks([d.defeito,d.solucao,d.modelo,d.cliente,d.classe].join(' '));
+  const set = new Set(hay);
+  let hit = 0;
+  qt.forEach(w=>{ if(set.has(w)) hit+=2; else if(hay.some(h=>h.includes(w)||w.includes(h))) hit+=1; });
+  // bônus se mesma classe citada
+  if(norm(q).includes(norm(d.classe))) hit+=1;
+  return hit / qt.length;
 }
-function imprimir(d){
-  const w = open('','_blank');
-  w.document.write(`<meta charset="utf-8"><title>${d.os}</title>
-  <style>body{font-family:Arial;padding:32px;color:#111}h1{border-bottom:3px solid #111;padding-bottom:8px}.box{border:1px solid #999;border-radius:10px;padding:14px;margin:12px 0}.sig{display:flex;gap:40px;margin-top:40px}.sig div{flex:1;border-top:1px solid #333;padding-top:6px;text-align:center}</style>
-  <h1>Ordem de Serviço ${d.os}</h1>
-  <div class="box"><b>Cliente:</b> ${d.cliente} (${d.telefone})<br><b>Equipamento:</b> ${d.classe} — ${d.modelo||'—'}<br><b>Defeito:</b> ${d.defeito}</div>
-  <div class="box"><b>Valor:</b> ${fmtBRL(d.valor)} &nbsp;|&nbsp; <b>Previsão:</b> ${d.previsao||'—'}<br><b>Obs:</b> ${d.obs||'—'}</div>
-  <p>Garantia de 90 dias para o serviço executado.</p>
-  <div class="sig"><div>Ass. cliente</div><div>Ass. técnico</div></div>
-  <script>print()<\/script>`);
+function similares(q, n=3){
+  return db.map(d=>({d, s:score(q,d)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,n);
 }
-document.addEventListener('DOMContentLoaded', ()=>{
-  $('#classPick').addEventListener('click', e=>{
-    const b = e.target.closest('button'); if(!b) return;
-    document.querySelectorAll('#classPick button').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active'); classe = b.dataset.class;
+function topTermos(){
+  const freq = {};
+  db.forEach(d=>toks(d.defeito).forEach(w=>{ if(!STOP.has(w)) freq[w]=(freq[w]||0)+1; }));
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,5);
+}
+
+/* ---- render ---- */
+function filtered(){
+  let l = db.filter(d=>{
+    const okC = fClass==='todos'||d.classe===fClass;
+    if(!okC) return false;
+    if(!fSearch) return true;
+    return score(fSearch,d)>0 || norm([d.cliente,d.defeito,d.solucao,d.modelo].join(' ')).includes(norm(fSearch));
   });
-  $('#printBtn').onclick = ()=>{ const d = dados(); if(valido(d)) imprimir(d); };
-  $('#wppBtn').onclick = ()=>{
-    const d = dados(); if(!valido(d)) return;
-    const f = '55' + d.telefone.replace(/\D/g,'');
-    open(`https://wa.me/${f}?text=${encodeURIComponent(`Olá ${d.cliente}! Aqui é da assistência — ${d.os} (${d.classe} ${d.modelo}) registrada. Defeito: ${d.defeito}. Valor: ${fmtBRL(d.valor)}. Previsão: ${d.previsao||'a combinar'}.`)}`,'_blank');
-  };
-  $('#themeBtn').onclick = ()=>document.body.classList.toggle('light');
-});
+  if(fSort==='az') l.sort((a,b)=>a.cliente.localeCompare(b.cliente));
+  else if(fSort==='classe') l.sort((a,b)=>a.classe.localeCompare(b.classe));
+  else l.sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  return l;
+}
+function counts(){
+  const c={todos:db.length,CPU:0,Notebook:0,Impressora:0,Outros:0};
+  db.forEach(d=>{ if(c[d.classe]!==undefined) c[d.classe]++; });
+  $('#cTodos').textContent=c.todos; $('#cCPU').textContent=c.CPU;
+  $('#cNotebook').textContent=c.Notebook; $('#cImpressora').textContent=c.Impressora; $('#cOutros').textContent=c.Outros;
+  $('#sTotal').textContent=db.length;
+  const top = topTermos()[0];
+  $('#sTop').textContent = top ? top[0] : '—';
+  const comSol = db.filter(d=>d.solucao&&d.solucao.trim()).length;
+  $('#sCob').textContent = db.length ? Math.round(comSol/db.length*100)+'%' : '0%';
+  const tops = topTermos().map(([w,n])=>`<span class="ins"><i class="fa-solid fa-hashtag"></i>${esc(w)} <b>${n}</b></span>`).join('');
+  $('#insights').innerHTML = tops || '<span class="muted">Sem dados ainda</span>';
+}
+const ICONS={CPU:'fa-tower-observation',Notebook:'fa-laptop',Impressora:'fa-print',Outros:'fa-tablet-screen-button'};
+function render(){
+  counts();
+  const list = filtered();
+  $('#resultCount').textContent = list.length+' caso(s)';
+  const box = $('#cards'); box.innerHTML='';
+  $('#empty').classList.toggle('hidden', list.length>0);
+  list.forEach(d=>{
+    const rel = fSearch ? similares(fSearch, 99).find(x=>x.d.id===d.id) : null;
+    const el = document.createElement('article');
+    el.className='card glass ia-card';
+    el.innerHTML=`
+      <div class="card-top">
+        <div><span class="os">${esc(d.data||'')}</span><h3>${esc(d.cliente)}</h3><span class="phone">${esc(d.modelo||'—')}</span></div>
+        <span class="badge b-${d.classe}"><i class="fa-solid ${ICONS[d.classe]||'fa-box'}"></i> ${d.classe}</span>
+      </div>
+      ${rel?`<span class="relev">✨ relevância ${Math.round(Math.min(rel.s,3)/3*100)}%</span>`:''}
+      <div class="defeito"><b style="color:#ffb3c0">⚠ Defeito:</b> ${esc(d.defeito)}</div>
+      <div class="solucao"><b style="color:#8fffb6">✔ Solução:</b> ${esc(d.solucao)}</div>
+      <div class="card-actions">
+        <button class="mini" data-act="edit"><i class="fa-solid fa-pen"></i> Editar</button>
+        <button class="mini" data-act="similar"><i class="fa-solid fa-wand-magic-sparkles"></i> Casos parecidos</button>
+        <button class="mini del" data-act="del"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>action(b.dataset.act,d.id));
+    box.appendChild(el);
+  });
+}
+function action(act,id){
+  const d=db.find(x=>x.id===id); if(!d) return;
+  if(act==='del'){ if(confirm('Excluir caso de '+d.cliente+'?')){ db=db.filter(x=>x.id!==id); save(); render(); toast('Excluído'); } }
+  if(act==='edit') openModal(d);
+  if(act==='similar'){
+    const s=similares(d.defeito+' '+d.modelo,4).filter(x=>x.d.id!==id);
+    const box=$('#aiAnswer'); box.classList.remove('hidden');
+    box.innerHTML = s.length
+      ? `<b>✨ Casos parecidos com "${esc(d.defeito)}":</b><br>`+s.map(x=>`• <b>${esc(x.d.cliente)}</b> (${x.d.classe}) — <i>${esc(x.d.defeito)}</i><br><span class="muted">→ ${esc(x.d.solucao)}</span>`).join('<br><br>')
+      : 'Nenhum caso parecido ainda.';
+    box.scrollIntoView({behavior:'smooth'});
+  }
+}
+
+/* ---- IA pergunta ---- */
+function askAI(q){
+  const box=$('#aiAnswer'); box.classList.remove('hidden');
+  if(!q.trim()){ box.innerHTML='Digite sua dúvida acima. Ex: "notebook não liga".'; return; }
+  const s=similares(q,3);
+  if(!s.length){ box.innerHTML=`Não encontrei nada parecido no histórico para "<b>${esc(q)}</b>". Cadastre a solução quando resolver para a IA aprender.`; return; }
+  box.innerHTML=`<b>✨ IA encontrou ${s.length} caso(s) para "${esc(q)}":</b><br><br>`+
+    s.map((x,i)=>`<b>${i+1}. ${esc(x.d.cliente)}</b> <span class="badge b-${x.d.classe}">${x.d.classe}</span><br><span class="muted">Defeito:</span> ${esc(x.d.defeito)}<br><span class="muted">Solução sugerida:</span> <b>${esc(x.d.solucao)}</b>`).join('<br><br>');
+}
+
+/* ---- modal ---- */
+function openModal(d){
+  $('#modal').classList.remove('hidden');
+  const f=$('#caseForm'); f.reset();
+  $('#modalTitle').innerHTML = d?'<i class="fa-solid fa-pen"></i> Editar caso':'<i class="fa-solid fa-plus"></i> Novo caso';
+  f.id.value=d?.id||''; f.cliente.value=d?.cliente||'';
+  f.data.value=d?.data||new Date().toISOString().slice(0,10);
+  f.classe.value=d?.classe||'CPU'; f.modelo.value=d?.modelo||'';
+  f.defeito.value=d?.defeito||''; f.solucao.value=d?.solucao||'';
+  $('#aiSuggest').classList.add('hidden');
+}
+function closeModal(){ $('#modal').classList.add('hidden'); }
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),2200); }
+
+async function init(){
+  load();
+  if(!db.length){ db = await seed(); save(); }
+  render();
+  $('#classFilter').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('#classFilter button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fClass=b.dataset.class; render(); });
+  document.querySelector('.seg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; $$('.seg button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); fSort=b.dataset.sort; render(); });
+  $('#searchInput').addEventListener('input',e=>{ fSearch=e.target.value; render(); });
+  document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); } if(e.key==='Escape') closeModal(); });
+  $('#aiBtn').onclick=()=>askAI($('#aiInput').value);
+  $('#aiInput').addEventListener('keydown',e=>{ if(e.key==='Enter') askAI(e.target.value); });
+  // sugestão automática ao digitar defeito no modal
+  $('#fDefeito').addEventListener('input',e=>{
+    const q=e.target.value; const box=$('#aiSuggest');
+    if(q.trim().length<4){ box.classList.add('hidden'); return; }
+    const s=similares(q,2);
+    if(!s.length){ box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    box.innerHTML='<b>✨ IA sugere (baseado no histórico):</b>'+s.map(x=>`<button type="button">Usar: "${esc(x.d.solucao.slice(0,90))}..."</button>`).join('');
+    box.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{ document.querySelector('#caseForm').solucao.value=s[i].d.solucao; });
+  });
+  $('#newBtn').onclick=()=>openModal(null);
+  $('#closeModal').onclick=closeModal; $('#cancelBtn').onclick=closeModal;
+  $('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+  $('#caseForm').addEventListener('submit',e=>{
+    e.preventDefault(); const f=e.target;
+    const data={id:f.id.value||crypto.randomUUID(),cliente:f.cliente.value.trim(),data:f.data.value||new Date().toISOString().slice(0,10),classe:f.classe.value,modelo:f.modelo.value.trim(),defeito:f.defeito.value.trim(),solucao:f.solucao.value.trim(),criadoEm:Date.now()};
+    if(!data.cliente||!data.defeito||!data.solucao) return toast('Preencha cliente, defeito e solução');
+    const i=db.findIndex(x=>x.id===data.id);
+    if(i>=0){ data.criadoEm=db[i].criadoEm; db[i]=data; } else db.unshift(data);
+    save(); render(); closeModal(); toast('Salvo! A IA já aprendeu.');
+  });
+  $('#exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='historico-assistencia.json'; a.click(); };
+  $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const j=JSON.parse(r.result); if(Array.isArray(j)){ db=j; save(); render(); toast('Importado!'); } }catch{ toast('Arquivo inválido'); } }; r.readAsText(f); });
+  $('#seedBtn').onclick=async()=>{ if(confirm('Restaurar exemplos?')){ db=await seed(); save(); render(); } };
+  $('#themeBtn').onclick=()=>document.body.classList.toggle('light');
+}
+document.addEventListener('DOMContentLoaded',init);

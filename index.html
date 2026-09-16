@@ -3,64 +3,113 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>TechFix — Assistência Técnica</title>
-<meta name="description" content="Abertura rápida de OS: CPU, Notebook, Impressora e Outros." />
+<title>TechFix IA — Histórico Inteligente</title>
+<meta name="description" content="Base de conhecimento da assistência: pesquise clientes, defeitos e soluções com IA local." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-<div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><div class="grid-overlay"></div></div>
+<div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><div class="grid-overlay"></div></div>
 
-<header class="topbar glass simple-top">
+<header class="topbar glass">
   <div class="brand">
-    <div class="logo"><i class="fa-solid fa-microchip"></i></div>
-    <div><strong>TechFix</strong><small>Assistência Técnica</small></div>
+    <div class="logo"><i class="fa-solid fa-brain"></i></div>
+    <div><strong>TechFix <span>IA</span></strong><small>Histórico inteligente • sem OS</small></div>
   </div>
-  <button id="themeBtn" class="icon-btn" title="Tema"><i class="fa-solid fa-circle-half-stroke"></i></button>
+  <div class="top-search big">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input id="searchInput" type="search" placeholder="Pesquisar cliente, defeito, solução, modelo... (Ctrl K)" autocomplete="off" />
+  </div>
+  <div class="top-actions">
+    <button id="themeBtn" class="icon-btn" title="Tema"><i class="fa-solid fa-circle-half-stroke"></i></button>
+    <button id="exportBtn" class="icon-btn" title="Exportar JSON"><i class="fa-solid fa-file-export"></i></button>
+    <label class="icon-btn" title="Importar JSON"><i class="fa-solid fa-file-import"></i><input id="importFile" type="file" accept=".json" hidden /></label>
+    <button id="newBtn" class="btn-primary"><i class="fa-solid fa-plus"></i> Novo caso</button>
+  </div>
 </header>
 
-<main class="simple-wrap">
-  <div class="simple-hero">
-    <h1>Nova ordem de serviço</h1>
-    <p>Preencha, imprima ou chame no WhatsApp. Sem cadastro, sem histórico.</p>
-  </div>
+<main class="layout">
+  <aside class="sidebar glass">
+    <p class="side-title">CLASSES</p>
+    <nav id="classFilter" class="class-nav">
+      <button data-class="todos" class="active"><i class="fa-solid fa-layer-group"></i> Todas <b id="cTodos">0</b></button>
+      <button data-class="CPU"><i class="fa-solid fa-tower-observation"></i> CPUs <b id="cCPU">0</b></button>
+      <button data-class="Notebook"><i class="fa-solid fa-laptop"></i> Notebooks <b id="cNotebook">0</b></button>
+      <button data-class="Impressora"><i class="fa-solid fa-print"></i> Impressoras <b id="cImpressora">0</b></button>
+      <button data-class="Outros"><i class="fa-solid fa-tablet-screen-button"></i> Outros <b id="cOutros">0</b></button>
+    </nav>
+    <p class="side-title">IA • INSIGHTS</p>
+    <div id="insights" class="insights"></div>
+    <button id="seedBtn" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Restaurar exemplos</button>
+  </aside>
 
-  <form id="osForm" class="glass simple-card">
-    <p class="side-title">1 • CLASSE DO EQUIPAMENTO</p>
-    <div class="class-pick" id="classPick">
-      <button type="button" data-class="CPU" class="active"><i class="fa-solid fa-tower-observation"></i>CPU</button>
-      <button type="button" data-class="Notebook"><i class="fa-solid fa-laptop"></i>Notebook</button>
-      <button type="button" data-class="Impressora"><i class="fa-solid fa-print"></i>Impressora</button>
-      <button type="button" data-class="Outros"><i class="fa-solid fa-tablet-screen-button"></i>Outros</button>
+  <section class="content">
+    <div class="hero ia-hero">
+      <div class="hero-text">
+        <div class="pill"><span class="dot"></span> IA local • funciona offline no GitHub Pages</div>
+        <h1>Sua memória técnica <em>que responde</em></h1>
+        <p>Pesquise o defeito e a IA sugere a solução usada antes. Pergunte abaixo em linguagem natural.</p>
+        <div class="ai-ask glass">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <input id="aiInput" placeholder='Ex: "impressora atolando papel, o que fazer?"' />
+          <button id="aiBtn" class="btn-primary">Perguntar à IA</button>
+        </div>
+        <div id="aiAnswer" class="ai-answer hidden"></div>
+      </div>
+      <div class="stats">
+        <div class="stat glass"><i class="fa-solid fa-database"></i><div><b id="sTotal">0</b><span>casos registrados</span></div></div>
+        <div class="stat glass"><i class="fa-solid fa-triangle-exclamation"></i><div><b id="sTop">—</b><span>defeito mais comum</span></div></div>
+        <div class="stat glass highlight"><i class="fa-solid fa-lightbulb"></i><div><b id="sCob">0%</b><span>com solução registrada</span></div></div>
+      </div>
     </div>
 
-    <p class="side-title">2 • DADOS</p>
-    <div class="grid2">
-      <label>Cliente*<input name="cliente" required placeholder="Ex: Maria Silva" /></label>
-      <label>Telefone / WhatsApp*<input name="telefone" required placeholder="(00) 90000-0000" /></label>
-    </div>
-    <div class="grid2">
-      <label>Marca / Modelo<input name="modelo" placeholder="Ex: Dell Inspiron / Epson L3250" /></label>
-      <label>Valor (R$)<input name="valor" type="number" min="0" step="0.01" placeholder="0.00" /></label>
-    </div>
-    <label>Defeito relatado*<textarea name="defeito" required rows="3" placeholder="Ex: Não liga..."></textarea></label>
-    <div class="grid2">
-      <label>Previsão entrega<input name="previsao" type="date" /></label>
-      <label>Obs<input name="obs" placeholder="Senha, acessórios..." /></label>
+    <div class="toolbar glass">
+      <div class="seg">
+        <button data-sort="recentes" class="active">Recentes</button>
+        <button data-sort="az">A–Z</button>
+        <button data-sort="classe">Classe</button>
+      </div>
+      <span id="resultCount" class="muted">0 casos</span>
     </div>
 
-    <div class="simple-actions">
-      <button type="button" id="printBtn" class="btn-primary"><i class="fa-solid fa-print"></i> Imprimir OS</button>
-      <button type="button" id="wppBtn" class="btn-wpp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-      <button type="reset" class="btn-glass">Limpar</button>
+    <div id="cards" class="cards"></div>
+    <div id="empty" class="empty glass hidden">
+      <i class="fa-solid fa-box-open"></i>
+      <h3>Nada por aqui</h3>
+      <p>Ajuste a pesquisa ou cadastre um novo caso.</p>
     </div>
-  </form>
-
-  <footer class="foot">TechFix • página única • GitHub Pages</footer>
+  </section>
 </main>
 
+<div id="modal" class="modal hidden">
+  <form id="caseForm" class="modal-card glass">
+    <div class="modal-head">
+      <h2 id="modalTitle"><i class="fa-solid fa-plus"></i> Novo caso</h2>
+      <button type="button" id="closeModal" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="grid2">
+      <label>Cliente*<input name="cliente" required placeholder="Ex: Maria Silva" /></label>
+      <label>Data<input name="data" type="date" /></label>
+    </div>
+    <div class="grid2">
+      <label>Classe*<select name="classe" required><option>CPU</option><option>Notebook</option><option>Impressora</option><option>Outros</option></select></label>
+      <label>Marca / Modelo<input name="modelo" placeholder="Ex: Dell Inspiron 15" /></label>
+    </div>
+    <label>Defeito atendido*<textarea name="defeito" id="fDefeito" required rows="2" placeholder="Descreva o defeito..."></textarea></label>
+    <div id="aiSuggest" class="ai-suggest hidden"></div>
+    <label>Solução encontrada*<textarea name="solucao" required rows="3" placeholder="O que resolveu? Passo a passo..."></textarea></label>
+    <input type="hidden" name="id" />
+    <div class="modal-foot">
+      <button type="button" id="cancelBtn" class="btn-glass">Cancelar</button>
+      <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar no banco</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<footer class="foot">TechFix IA • banco local no navegador + <code>data/clientes.json</code> • IA 100% local, sem chave</footer>
 <script src="js/app.js"></script>
 </body>
 </html>
